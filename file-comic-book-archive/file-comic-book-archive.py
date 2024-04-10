@@ -136,7 +136,47 @@ def load_comic_book_archive(procedure, run_mode, file, metadata, flags, config, 
         GObject.Value(Gimp.Image, img)
     ]), flags
 
+def save_CBAFF(procedure, run_mode, image, n_drawables, drawables, file, metadata, config, data):
+    def write_file_str(zfile, fname, data):
+        zi = zfile.ZipInfo(fname)
+        zi.external_attr = int("100644", 8) << 16
+        zfile.writestr(zi, data)
 
+    Gimp.progress_init("Exporting CBAFF image")
+    tempdir = tempfile.mkdtemp('gimp-plugin-file-CBAFF')
+    cbaffFile = zipfile.ZipFile(file.peek_path() + '.tmpsave', 'w', compression=zipfile.ZIP_STORED)
+
+    def store_layer(image, drawable, path):
+        tmp = os.path.join(tempdir, 'tmp.jpeg')
+        pdb_proc = Gimp.get_pdb().lookup_procedure('file-jpeg-save')
+        pdb_config = pdb_proc.create_config()
+        pdb_config.set_property('run-mode', Gimp.RunMode.NONINTERACTIVE)
+        pdb_config.set_property('image', image)
+        pdb_config.set_property('num-drawables', 1)
+        pdb_config.set_property('drawables', Gimp.ObjectArray.new(Gimp.Drawable, [drawable], False))
+        pdb_config.set_property('file', Gio.File.new_for_path(tmp))
+        pdb_proc.run(pdb_config)
+        if (os.path.exists(tmp)):
+            cbaffFile.write(tmp, path)
+            os.remove(tmp)
+        else:
+            print("Error removing ", tmp)
+
+    first_image = image.duplicate()
+    first_image_layer = first_image.merge_visible_layers(Gimp.MergeType.CLIP_TO_IMAGE)
+    store_layer(first_image, first_image_layer, 'firstimage.jpeg')
+
+    cbaffFile.close()
+    os.rmdir(tempdir)
+    if os.path.exists(file.peek_path()):
+        os.remove(file.peek_path())
+    os.rename(file.peek_path() + '.tmpsave', file.peek_path())
+
+    Gimp.progress_end()
+
+    return Gimp.ValueArray.new_from_values([
+        GObject.Value(Gimp.PDBStatusType, Gimp.PDBStatusType.SUCCESS)
+    ])
 class FileComicBookArchive(Gimp.PlugIn):
     ## GimpPlugIn virtual methods ##
     def do_set_i18n(self, procname):
@@ -144,7 +184,8 @@ class FileComicBookArchive(Gimp.PlugIn):
 
     def do_query_procedures(self):
         return ['file-comic-book-archive-load-thumb',
-                'file-comic-book-archive-load', ]
+                'file-comic-book-archive-load',
+                'file-comic-book-archive-save']
 
     def do_create_procedure(self, name):
         if name == 'file-comic-book-archive-load':
@@ -158,6 +199,16 @@ class FileComicBookArchive(Gimp.PlugIn):
             procedure.set_mime_types("application/vnd.comicbook+zip");
             procedure.set_extensions("cbz");
             procedure.set_thumbnail_loader('file-comic-book-archive-load-thumb');
+        elif name == 'file-comic-book-archive-save':
+            procedure = Gimp.SaveProcedure.new(self, name,
+                                               Gimp.PDBProcType.PLUGIN,
+                                               False, save_CBAFF, None)
+            procedure.set_image_types("*");
+            procedure.set_documentation('save a CBAFF (.cbz) file',
+                                        'save a CBAFF (.cbz) file',
+                                        name)
+            procedure.set_menu_label('CBAFF')
+            procedure.set_extensions("cbz");
         else:  # 'file-comic-book-archive-load-thumb':
             procedure = Gimp.ThumbnailProcedure.new(self, name,
                                                     Gimp.PDBProcType.PLUGIN,
