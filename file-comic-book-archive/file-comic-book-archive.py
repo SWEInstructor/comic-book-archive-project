@@ -80,13 +80,18 @@ def load_comic_book_archive(procedure, run_mode, file, metadata, flags, config, 
     file_info_list = cbaffFile.infolist()
     layer_names = []
 
-    #Loop through all files
+    # Valid file endings
+    extensions = ['jpg', 'jpeg', 'png', 'tiff', 'gif', 'bmp']
+    # Loop through all files
     for file_info in file_info_list:
-        #Check if the end with a valid extension
-        #TODO: Verify this actually does filter valid files
-        if file_info.filename.endswith('jpg' or 'jpeg' or 'png' or 'tiff' or 'gif' or 'bmp'):
-            #Add the name to a list to use later
+        # Check if the end with a valid extension
+        # TODO: Verify this actually does filter valid files
+        print(file_info.filename)
+        if file_info.filename.endswith(tuple(extensions)):
+            # Add the name to a list to use later
             layer_names.append(file_info.filename)
+        else:
+            print("Unsupported layer format")
 
     #Create an Image object
     img = Gimp.Image.new(1, 1, Gimp.ImageBaseType.RGB)
