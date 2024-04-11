@@ -167,9 +167,12 @@ def save_CBAFF(procedure, run_mode, image, n_drawables, drawables, file, metadat
         else:
             print("Error removing ", tmp)
 
-    first_image = image.duplicate()
-    first_image_layer = first_image.merge_visible_layers(Gimp.MergeType.CLIP_TO_IMAGE)
-    store_layer(first_image, first_image_layer, 'firstimage.jpeg')
+    layers = image.list_layers()
+    print(layers)
+    for page in layers:
+        layer_name = page.get_name()
+        page = image.merge_visible_layers(Gimp.MergeType.CLIP_TO_IMAGE)
+        store_layer(image, page, layer_name)
 
     cbaffFile.close()
     os.rmdir(tempdir)
