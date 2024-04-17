@@ -248,7 +248,7 @@ def save_cbt(procedure, run_mode, image, n_drawables, drawables, file, metadata,
             dialog.destroy()
 
     tempdir = tempfile.mkdtemp('gimp-plugin-file-cbt')
-
+    cbaffFile = tarfile.open(file.peek_path() + '.tmpsave', 'w')
     # Example of how to access user input
     print(config.get_property('title'))
     #moved store layers up since I need to call on it earlier
@@ -269,14 +269,17 @@ def save_cbt(procedure, run_mode, image, n_drawables, drawables, file, metadata,
             print("Error removing ", tmp)
 
     #issues with configuration command caused me to call to cbaffFile(hence why I needed to make def store_layer earlier)
-    with tarfile.open(file.peek_path() + '.tmpsave', 'w') as cbaffFile:
-        #items for layering are still here
-        layers = image.list_layers()
-        print(layers)
-        for page in layers:
-            layer_name = page.get_name()
-            page = image.merge_visible_layers(Gimp.MergeType.CLIP_TO_IMAGE)
-            store_layer(image, page, layer_name)
+    layers = image.list_layers()
+    print(layers)
+    for page in layers:
+        layer_name = page.get_name()
+        page = image.merge_visible_layers(Gimp.MergeType.CLIP_TO_IMAGE)
+        store_layer(image, page, layer_name)
+
+    cbaffFile.close()
+    os.rmdir(tempdir)
+    if os.path.exists(file.peek_path()):
+        os.remove(file.peek_path())
 
     os.rename(file.peek_path() + '.tmpsave', file.peek_path())
 
