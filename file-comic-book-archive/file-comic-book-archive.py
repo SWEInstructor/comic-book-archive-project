@@ -168,11 +168,12 @@ def load_image(procedure, run_mode, file, metadata, flags, config, data, compres
 
 def save_cbz(procedure, run_mode, image, n_drawables, drawables, file, metadata, config, data):
     def write_file_str(zfile, fname, data):
-        zi = zfile.ZipInfo(fname)
-        zi.external_attr = int("100644", 8) << 16
-        zfile.writestr(zi, data)
+        #zi.external_attr = int("100644", 8) << 16
+        zfile.writestr(fname, data)
 
     Gimp.progress_init("Exporting Comic Book Archive (cbz) image")
+    tempdir = tempfile.mkdtemp('gimp-plugin-file-cbz')
+    cbaffFile = zipfile.ZipFile(file.peek_path() + '.tmpsave', 'w', compression=zipfile.ZIP_STORED)
 
     #GUI Code
     if run_mode == Gimp.RunMode.INTERACTIVE:
@@ -187,11 +188,17 @@ def save_cbz(procedure, run_mode, image, n_drawables, drawables, file, metadata,
         else:
             dialog.destroy()
 
-    #Example of how to access user input
-    print(config.get_property('title'))
-
-    tempdir = tempfile.mkdtemp('gimp-plugin-file-cbz')
-    cbaffFile = zipfile.ZipFile(file.peek_path() + '.tmpsave', 'w', compression=zipfile.ZIP_STORED)
+    #Create an xml file and add the user input from the GUI to it
+    xml_image = ET.Element('image')
+    xml_image.set('title', config.get_property('title'))
+    xml_image.set('series', config.get_property('series'))
+    xml_image.set('genre', config.get_property('genre'))
+    xml_image.set('year', config.get_property('year'))
+    xml_image.set('month', config.get_property('month'))
+    xml_image.set('day', config.get_property('day'))
+    xml_image.set('tags', config.get_property('tags'))
+    xml = ET.tostring(xml_image, encoding='UTF-8')
+    write_file_str(cbaffFile, 'metadata.xml', xml)
 
     def store_layer(image, drawable, path):
         tmp = os.path.join(tempdir, 'tmp.jpeg')
@@ -236,8 +243,38 @@ class FileComicBookArchive(Gimp.PlugIn):
                           False,
                           GObject.ParamFlags.READWRITE),
         "title": (str,
-                 ("Title"),
-                 ("Book Title"),
+                  ("Title"),
+                  ("Book Title"),
+                  "",
+                  GObject.ParamFlags.READWRITE),
+        "series": (str,
+                   ("Series"),
+                   ("Series Title"),
+                   "",
+                   GObject.ParamFlags.READWRITE),
+        "genre": (str,
+                  ("Genre"),
+                  ("Book Genre"),
+                  "",
+                  GObject.ParamFlags.READWRITE),
+        "year": (str,
+                 ("Year"),
+                 ("Book Year"),
+                 "",
+                 GObject.ParamFlags.READWRITE),
+        "month": (str,
+                 ("Month"),
+                 ("Book Month"),
+                 "",
+                 GObject.ParamFlags.READWRITE),
+        "day": (str,
+                 ("Day"),
+                 ("Book Day"),
+                 "",
+                 GObject.ParamFlags.READWRITE),
+        "tags": (str,
+                 ("Tags"),
+                 ("Book Tags"),
                  "",
                  GObject.ParamFlags.READWRITE),
     }
@@ -289,6 +326,12 @@ class FileComicBookArchive(Gimp.PlugIn):
             #Adding parameters for GUI
             procedure.add_argument_from_property(self, "save-metadata")
             procedure.add_argument_from_property(self, "title")
+            procedure.add_argument_from_property(self, "series")
+            procedure.add_argument_from_property(self, "genre")
+            procedure.add_argument_from_property(self, "year")
+            procedure.add_argument_from_property(self, "month")
+            procedure.add_argument_from_property(self, "day")
+            procedure.add_argument_from_property(self, "tags")
         elif name == 'file-cbz-thumb':
             procedure = Gimp.ThumbnailProcedure.new(self, name,
                                                     Gimp.PDBProcType.PLUGIN,
