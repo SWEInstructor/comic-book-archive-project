@@ -184,6 +184,7 @@ def save_image(procedure, run_mode, image, n_drawables, drawables, file, metadat
 
         dialog = GimpUi.ProcedureDialog(procedure=procedure, config=config)
         dialog.fill(None)
+
         if not dialog.run():
             dialog.destroy()
             return procedure.new_return_values(Gimp.PDBStatusType.CANCEL, GLib.Error())
@@ -192,20 +193,30 @@ def save_image(procedure, run_mode, image, n_drawables, drawables, file, metadat
 
         # Save metadata only if the checkbox is checked
     if config.get_property('save-metadata'):
-        # Create an xml file and add the user input from the GUI to it
-        xml_image = ET.Element('image')
-        xml_image.set('title', config.get_property('title'))
-        xml_image.set('series', config.get_property('series'))
-        xml_image.set('genre', config.get_property('genre'))
-        xml_image.set('year', config.get_property('year'))
-        xml_image.set('month', config.get_property('month'))
-        xml_image.set('day', config.get_property('day'))
-        xml_image.set('tags', config.get_property('tags'))
-        xml = ET.tostring(xml_image, encoding='UTF-8')
+        # Create a xml file and add the user input from the GUI to it
+        comic_info = ET.Element('ComicInfo')
+        elements = {
+            'Title': config.get_property('title'),
+            'Series': config.get_property('series'),
+            'Genre': config.get_property('genre'),
+            'PageCount': config.get_property('pagecount'),
+            'Year': config.get_property('year'),
+            'Month': config.get_property('month'),
+            'Day': config.get_property('day'),
+            'Tags': config.get_property('tags'),
+        }
+        for tag, value in elements.items():
+            child = ET.SubElement(comic_info, tag)
+            child.text = value
+
+        #Conver the XML to a string and include XML declaration
+        xml = ET.tostring(comic_info, encoding='UTF-8', xml_declaration=True)
+
+        #Write XML to a file
         if(isinstance(cbaffFile, zipfile.ZipFile)):
-            cbaffFile.writestr('metadata.xml', xml)
+            cbaffFile.writestr('ComicInfo.xml', xml)
         elif(isinstance(cbaffFile, tarfile.TarFile)):
-            tarinfo = tarfile.TarInfo('metadata.xml')
+            tarinfo = tarfile.TarInfo('ComicInfo.xml')
             tarinfo.size = len(xml)
             cbaffFile.addfile(tarinfo, io.BytesIO(xml))
 
@@ -269,6 +280,11 @@ class FileComicBookArchive(Gimp.PlugIn):
                   ("Book Genre"),
                   "",
                   GObject.ParamFlags.READWRITE),
+        "pagecount": (str,
+                       ("PageCount"),
+                       ("Number of Pages"),
+                       "",
+                       GObject.ParamFlags.READWRITE),
         "year": (str,
                  ("Year"),
                  ("Book Year"),
@@ -341,6 +357,7 @@ class FileComicBookArchive(Gimp.PlugIn):
             procedure.add_argument_from_property(self, "title")
             procedure.add_argument_from_property(self, "series")
             procedure.add_argument_from_property(self, "genre")
+            procedure.add_argument_from_property(self, "pagecount")
             procedure.add_argument_from_property(self, "year")
             procedure.add_argument_from_property(self, "month")
             procedure.add_argument_from_property(self, "day")
@@ -361,6 +378,7 @@ class FileComicBookArchive(Gimp.PlugIn):
             procedure.add_argument_from_property(self, "title")
             procedure.add_argument_from_property(self, "series")
             procedure.add_argument_from_property(self, "genre")
+            procedure.add_argument_from_property(self, "pagecount")
             procedure.add_argument_from_property(self, "year")
             procedure.add_argument_from_property(self, "month")
             procedure.add_argument_from_property(self, "day")
