@@ -80,8 +80,8 @@ def load_comic_book_archive(procedure, run_mode, file, metadata, flags, config, 
     file_info_list = cbaffFile.infolist()
     layer_names = []
 
-    #Loop through all files
-    for file_info in file_info_list:
+    #Loop through all files and sort
+    for file_info in sorted(file_info_list, key=lambda x: x.filename):
         #Check if the end with a valid extension
         #TODO: Verify this actually does filter valid files
         if file_info.filename.endswith('jpg' or 'jpeg' or 'png' or 'tiff' or 'gif' or 'bmp'):
